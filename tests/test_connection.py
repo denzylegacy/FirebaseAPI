@@ -227,6 +227,27 @@ class FirebaseAPIClient:
             print(f"❌ Error checking API test endpoint: {str(e)}")
             return False
 
+    def update_admin_status(self):
+        """Update admin status"""
+        if not self.is_token_valid():
+            return False
+        
+        url = f"{self.base_url}/api/v1/auth/update-admin"
+        
+        try:
+            response = requests.post(url, headers=self.headers, timeout=10)
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"✅ Admin status updated: {result}")
+                return True
+            else:
+                print(f"❌ Error updating admin status: {response.text}")
+                return False
+        except Exception as e:
+            print(f"❌ Error updating admin status: {str(e)}")
+            return False
+
 
 def main():
     """Main function"""
@@ -274,6 +295,9 @@ def main():
     # Check if user is admin
     if client.is_admin():
         print("✅ Current user has admin privileges")
+        
+        # Update admin status
+        client.update_admin_status()
         
         # List all users (admin only)
         users = client.list_users()

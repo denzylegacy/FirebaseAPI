@@ -18,11 +18,12 @@ class Token(BaseModel):
 
 
 class User(BaseModel):
+    """User model"""
     id: str
-    username: str
     email: str
-    disabled: Optional[bool] = False
-    is_admin: Optional[bool] = False
+    username: str
+    disabled: bool = False
+    is_admin: bool = False  # Default to False
 
 
 class UserInDB(User):

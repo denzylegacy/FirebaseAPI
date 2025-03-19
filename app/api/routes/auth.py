@@ -20,6 +20,7 @@ from firebase_admin.exceptions import FirebaseError
 from app.services import async_firebase
 from app.settings import CONFIG
 from app.services.firebase_client.async_firebase import AsyncFirebase
+from app.api.security.rbac import get_current_admin_user
 
 router = APIRouter()
 
@@ -385,4 +386,31 @@ async def test_firebase():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to test Firebase connection: {str(e)}"
+        )
+
+@router.post("/update-admin", response_model=Dict[str, Any])
+async def update_admin(current_user: User = Depends(get_current_admin_user)):
+    """
+    Update admin status (admin only)
+    """
+    try:
+        firebase = AsyncFirebase()
+        admin_data = await firebase.read("users/admin")
+        
+        if not admin_data:
+            return {"status": "error", "message": "Admin user not found"}
+        
+        # Force update admin privileges
+        admin_data["is_admin"] = True
+        success = await firebase.write("users/admin", admin_data)
+        
+        if success:
+            return {"status": "success", "message": "Admin status updated", "is_admin": True}
+        else:
+            return {"status": "error", "message": "Failed to update admin status"}
+    except Exception as e:
+        await log.async_error(f"Error updating admin status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update admin status: {str(e)}"
         )

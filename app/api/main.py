@@ -149,7 +149,9 @@ async def startup_event():
             if user_data.get("email") == CONFIG.ADMIN_EMAIL:
                 admin_exists = True
                 await log.async_info(f"Admin user found: {user_id}")
-                if not user_data.get("is_admin", False):
+                
+                # Force update admin privileges to ensure consistency
+                if user_data.get("is_admin") is not True:  # Check explicitly for True
                     user_data["is_admin"] = True
                     await firebase.write(f"users/{user_id}", user_data)
                     await log.async_info(f"Updated admin privileges for user: {CONFIG.ADMIN_EMAIL}")

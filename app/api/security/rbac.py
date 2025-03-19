@@ -8,21 +8,26 @@ from app.settings import log
 
 async def get_current_admin_user(current_user: User = Depends(get_current_active_user)) -> User:
     """
-    Dependency to check if the current user is an admin
+    Get current user and verify admin privileges
     
     Args:
-        current_user: The authenticated user
+        current_user: Current authenticated user
         
     Returns:
-        The user if they are an admin
+        User if admin, raises exception otherwise
         
     Raises:
-        HTTPException: If the user is not an admin
+        HTTPException: If user is not an admin
     """
-    if not getattr(current_user, "is_admin", False):
-        await log.async_warning(f"Non-admin user {current_user.username} attempted to access admin-only endpoint")
+    await log.async_info(f"Checking admin privileges for user: {current_user.email}")
+    await log.async_info(f"User admin status: {current_user.is_admin}")
+    
+    if not current_user.is_admin:
+        await log.async_warning(f"Non-admin user {current_user.email} attempted to access admin-only endpoint")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized. Admin privileges required."
+            detail="Not enough permissions. Admin privileges required."
         )
+    
+    await log.async_info(f"Admin access granted for user: {current_user.email}")
     return current_user 

@@ -141,8 +141,6 @@ class AsyncFirebase:
                 if data is None:
                     await log.async_info(f"No data found at path: {path}")
                     return {}
-                    
-                await log.async_info(f"Data read from Firebase: {json.dumps(data, indent=2) if data else '{}'}")
                 return data
         except Exception as e:
             await log.async_error(f"Error reading from Firebase: {str(e)}")
