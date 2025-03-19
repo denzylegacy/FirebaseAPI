@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 import re
 import uuid
+from pydantic import EmailStr
 
 
 class TokenData(BaseModel):
@@ -17,6 +18,7 @@ class Token(BaseModel):
 
 
 class User(BaseModel):
+    id: str
     username: str
     email: str
     disabled: Optional[bool] = False
@@ -75,4 +77,36 @@ class GenericItemUpdate(BaseModel):
         return v
     
     class Config:
-        orm_mode = True 
+        orm_mode = True
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    username: str
+    password: str
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "username": "johndoe",
+                "password": "strongpassword123"
+            }
+        }
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: EmailStr
+    username: str
+    is_active: bool
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": "abc@123",
+                "email": "user@example.com",
+                "username": "johndoe",
+                "is_active": True
+            }
+        }

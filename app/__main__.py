@@ -3,12 +3,9 @@
 
 import os
 import sys
-import warnings
 
 original_stderr = sys.stderr
 sys.stderr = open(os.devnull, 'w')
-
-import passlib.handlers.bcrypt
 
 sys.stderr = original_stderr
 

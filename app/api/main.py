@@ -35,10 +35,8 @@ async def lifespan(app: FastAPI):
     try:
         await firebase._initialize_firebase()
         
-        # Obter a senha em texto simples do .env
-        admin_password = os.getenv("ADMIN_PASSWORD", "admin")  # Senha padrão se não for fornecida
+        admin_password = os.getenv("ADMIN_PASSWORD", "admin")  # Default password if not provided
         
-        # Sempre criar o hash da senha fornecida
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         hashed_password = pwd_context.hash(admin_password)
         
@@ -48,7 +46,7 @@ async def lifespan(app: FastAPI):
             "admin": {
                 "username": CONFIG.ADMIN_USERNAME,
                 "email": CONFIG.ADMIN_EMAIL,
-                "hashed_password": hashed_password,  # Use o hash gerado
+                "hashed_password": hashed_password,
                 "disabled": CONFIG.ADMIN_DISABLED
             }
         })

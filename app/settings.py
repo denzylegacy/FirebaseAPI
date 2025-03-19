@@ -70,6 +70,7 @@ class Config:
     ADMIN_EMAIL: str
     ADMIN_PASSWORD: str
     ADMIN_DISABLED: bool
+    BASE_URL: str
 
 
 CONFIG = Config(
@@ -86,6 +87,11 @@ CONFIG = Config(
     ),
     ADMIN_USERNAME=os.getenv("ADMIN_USERNAME", "admin"),
     ADMIN_EMAIL=os.getenv("ADMIN_EMAIL", "admin@example.com"),
-    ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD", ""),
+    ADMIN_PASSWORD=os.getenv("ADMIN_PASSWORD", "admin_password_for_development"),
     ADMIN_DISABLED=os.getenv("ADMIN_DISABLED", "False").lower() == "true",
+    BASE_URL=os.getenv("BASE_URL", "http://localhost:8000"),
 )
+
+# Gmail configuration
+GMAIL_SENDER_EMAIL = os.getenv("GMAIL_SENDER_EMAIL", "")
+GMAIL_SENDER_SECRET = os.getenv("GMAIL_SENDER_SECRET", "")
