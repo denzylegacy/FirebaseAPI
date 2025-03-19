@@ -30,15 +30,15 @@ class LoginRequest(BaseModel):
     password: str
 
 @router.post("/login", response_model=Token)
-async def login(login_data: LoginRequest) -> Any:
+async def login(login_data: OAuth2PasswordRequestForm = Depends()):
     """
     Get access token with email and password
     """
-    await log.async_info(f"Login endpoint called with email: {login_data.email}")
+    await log.async_info(f"Login endpoint called with username: {login_data.username}")
     
-    user = await authenticate_user(login_data.email, login_data.password)
+    user = await authenticate_user(login_data.username, login_data.password)
     if not user:
-        await log.async_warning(f"Failed login attempt for email: {login_data.email}")
+        await log.async_warning(f"Failed login attempt for email: {login_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -48,11 +48,15 @@ async def login(login_data: LoginRequest) -> Any:
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     access_token = create_access_token(
-        data={"sub": user.email, "user_id": user.id},
-        expires_delta=access_token_expires,
+        data={
+            "sub": user.email, 
+            "user_id": user.id,
+            "is_admin": user.is_admin  # Include is_admin in token
+        },
+        expires_delta=access_token_expires
     )
     
-    await log.async_info(f"User with email {login_data.email} logged in successfully")
+    await log.async_info(f"User with email {login_data.username} logged in successfully")
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/user/me", response_model=User)
@@ -225,59 +229,53 @@ async def reset_password(token: str, new_password: str) -> Dict[str, str]:
             detail="Failed to reset password"
         )
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register_user(user_data: UserCreate):
+@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
+async def register(user_data: UserCreate):
     """
-    Register a new user with email and password
+    Register a new user
     """
     try:
-        # Verificar se o usuário já existe
+        # Check if email already exists
         users_data = await async_firebase.read("users")
-        
         if users_data:
             for _, data in users_data.items():
                 if data.get("email") == user_data.email:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="User with this email already exists"
+                        detail="Email already registered"
                     )
         
-        # Gerar ID único para o usuário
-        user_id = str(uuid.uuid4())
-        
-        # Hash da senha
+        # Hash the password
         hashed_password = get_password_hash(user_data.password)
         
-        # Preparar dados do usuário
+        # Generate a unique user ID
+        user_id = str(uuid.uuid4())
+        
+        # Create user data with is_admin field (default to False)
         new_user = {
-            "email": user_data.email,
             "username": user_data.username,
+            "email": user_data.email,
             "hashed_password": hashed_password,
-            "disabled": False
+            "disabled": False,
+            "is_admin": False  # Default to non-admin
         }
         
-        # Salvar no Firebase
-        success = await async_firebase.create(f"users/{user_id}", new_user)
-        
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create user"
-            )
+        # Save to Firebase
+        await async_firebase.create(f"users/{user_id}", new_user)
         
         return {
             "id": user_id,
-            "email": user_data.email,
             "username": user_data.username,
+            "email": user_data.email,
             "is_active": True
         }
     except HTTPException:
         raise
     except Exception as e:
-        await log.async_error(f"Error creating user: {str(e)}")
+        await log.async_error(f"Error registering user: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create user: {str(e)}"
+            detail=f"Failed to register user: {str(e)}"
         )
 
 @router.post("/token", response_model=Token)
@@ -305,3 +303,86 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     
     await log.async_info(f"User with email {form_data.username} logged in successfully")
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/login-json", response_model=Token)
+async def login_json(login_data: LoginRequest):
+    """
+    Get access token with email and password (JSON version)
+    """
+    await log.async_info(f"Login endpoint called with email: {login_data.email}")
+    
+    user = await authenticate_user(login_data.email, login_data.password)
+    if not user:
+        await log.async_warning(f"Failed login attempt for email: {login_data.email}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    access_token = create_access_token(
+        data={
+            "sub": user.email, 
+            "user_id": user.id,
+            "is_admin": user.is_admin
+        },
+        expires_delta=access_token_expires
+    )
+    
+    await log.async_info(f"User with email {login_data.email} logged in successfully")
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("/check-admin", response_model=Dict[str, Any])
+async def check_admin():
+    """
+    Check if admin user exists (public endpoint for testing)
+    """
+    try:
+        # Create an instance
+        firebase = AsyncFirebase()
+        admin_data = await firebase.read("users/admin")
+        if not admin_data:
+            return {"exists": False}
+        
+        # Don't return sensitive data
+        return {
+            "exists": True,
+            "email": admin_data.get("email"),
+            "username": admin_data.get("username"),
+            "is_admin": admin_data.get("is_admin", False)
+        }
+    except Exception as e:
+        await log.async_error(f"Error checking admin: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to check admin: {str(e)}"
+        )
+
+@router.get("/test", response_model=Dict[str, str])
+async def test_endpoint():
+    """
+    Test endpoint (public)
+    """
+    return {"message": "API is working!"}
+
+@router.get("/test-firebase", response_model=Dict[str, Any])
+async def test_firebase():
+    """
+    Test Firebase connection
+    """
+    try:
+        firebase = AsyncFirebase()
+        connection_ok = await firebase.test_connection()
+        
+        if connection_ok:
+            return {"status": "ok", "message": "Firebase connection successful"}
+        else:
+            return {"status": "error", "message": "Firebase connection failed"}
+    except Exception as e:
+        await log.async_error(f"Error testing Firebase connection: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to test Firebase connection: {str(e)}"
+        )

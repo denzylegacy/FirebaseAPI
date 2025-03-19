@@ -22,6 +22,7 @@ class User(BaseModel):
     username: str
     email: str
     disabled: Optional[bool] = False
+    is_admin: Optional[bool] = False
 
 
 class UserInDB(User):

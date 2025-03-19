@@ -1,16 +1,71 @@
 # -*- coding: utf-8 -*-
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Path, status
+from typing import List, Dict, Any
 import uuid
 
 from app.services.firebase_client.data_service import FirebaseDataService
-from app.api.models.schemas import GenericItem, GenericItemCreate, GenericItemUpdate
+from app.api.models.schemas import GenericItem, GenericItemCreate, GenericItemUpdate, User
 from app.api.security.jwt import get_current_active_user
 from app.settings import log
+from app.services.firebase_client.async_firebase import AsyncFirebase
+from app.api.security.rbac import get_current_admin_user
 
 router = APIRouter()
 data_service = FirebaseDataService()
+async_firebase = AsyncFirebase()
+
+
+@router.get("/users", response_model=Dict[str, Any])
+async def list_users(current_user: User = Depends(get_current_admin_user)):
+    """
+    List all users (admin only)
+    
+    Args:
+        current_user: Authenticated admin user
+        
+    Returns:
+        Dictionary with all users
+    """
+    try:
+        users_data = await async_firebase.read("users")
+        return users_data or {}
+    except Exception as e:
+        await log.async_error(f"Error listing users: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list users: {str(e)}"
+        )
+
+
+@router.get("/users/{user_id}", response_model=Dict[str, Any])
+async def get_user(user_id: str, current_user: User = Depends(get_current_active_user)):
+    """
+    Get details for a specific user
+    
+    Args:
+        user_id: User ID
+        current_user: Authenticated user
+        
+    Returns:
+        User data
+    """
+    try:
+        user_data = await async_firebase.read(f"users/{user_id}")
+        if not user_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with ID {user_id} not found"
+            )
+        return user_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        await log.async_error(f"Error getting user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get user: {str(e)}"
+        )
 
 
 @router.get("/{collection}", response_model=List[GenericItem])

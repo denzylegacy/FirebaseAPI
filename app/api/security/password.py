@@ -27,4 +27,6 @@ def get_password_hash(password: str) -> str:
     Returns:
         Hashed password
     """
-    return pwd_context.hash(password) 
+    hashed = pwd_context.hash(password)
+    print(f"Hashed result: {hashed}")
+    return hashed 

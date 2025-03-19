@@ -5,7 +5,6 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from jose import jwt
 from typing import List, Optional
 from starlette.responses import JSONResponse
-from starlette.status import HTTP_401_UNAUTHORIZED
 
 from app.settings import CONFIG, log
 from app.api.security.jwt import ALGORITHM
@@ -52,38 +51,37 @@ class AuthMiddleware(BaseHTTPMiddleware):
         Returns:
             Response or authentication error
         """
-        path = request.url.path
-        
+        # public paths that don't require authentication
         public_paths = [
-            "/api/v1/auth/login",
-            "/api/v1/auth/token",
-            "/api/v1/auth/register",
-            "/api/v1/auth/forgot-password",
             "/api/v1/health",
+            "/api/v1/auth/login",
+            "/api/v1/auth/login-json",
+            "/api/v1/auth/register",
+            "/api/v1/auth/token",
             "/docs",
             "/redoc",
             "/openapi.json"
         ]
         
-        is_public_route = path in public_paths or any(path.startswith(prefix) for prefix in ["/static/", "/public/"])
-        
-        if is_public_route:
+        path = request.url.path
+        if any(path.startswith(public_path) for public_path in public_paths):
+            await log.async_info(f"Skipping authentication for public path: {path}")
             return await call_next(request)
         
+        auth_header = request.headers.get("Authorization")
+        
+        if not auth_header:
+            await log.async_warning(f"Unauthorized access attempt to {path}")
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={
+                    "status": "error",
+                    "message": "Not authenticated",
+                    "detail": "Authentication credentials were not provided or are invalid"
+                }
+            )
+        
         try:
-            auth_header = request.headers.get("Authorization")
-            if not auth_header or not auth_header.startswith("Bearer "):
-                await log.async_warning(f"Unauthorized access attempt to {path}")
-                return JSONResponse(
-                    status_code=HTTP_401_UNAUTHORIZED,
-                    content={
-                        "status": "error",
-                        "message": "Not authenticated",
-                        "detail": "Authentication credentials were not provided or are invalid"
-                    },
-                    headers={"WWW-Authenticate": "Bearer"}
-                )
-            
             token = auth_header.split(" ")[1]
             payload = jwt.decode(token, CONFIG.SECRET_KEY, algorithms=[ALGORITHM])
             username: str | None = payload.get("sub", None)

@@ -122,22 +122,31 @@ class AsyncFirebase:
             await log.async_error(f"Firebase error for path '{reference_path}': {str(e)}")
             raise
 
-    async def read(self, reference_path: str) -> Optional[Dict[str, Any]]:
+    async def read(self, path: str) -> Dict[str, Any]:
         """
-        Read data from Firebase reference path.
+        Read data from Firebase
         
         Args:
-            reference_path: Path to the Firebase reference
+            path: Path to read from
             
         Returns:
-            Data at the reference path or None if not found/error
+            Data at the specified path
         """
         try:
-            async with self.get_reference(reference_path) as ref:
-                return await asyncio.to_thread(ref.get)
+            await log.async_info(f"Reading from Firebase path: {path}")
+            
+            async with self.get_reference(path) as ref:
+                data = await asyncio.to_thread(ref.get)
+                
+                if data is None:
+                    await log.async_info(f"No data found at path: {path}")
+                    return {}
+                    
+                await log.async_info(f"Data read from Firebase: {json.dumps(data, indent=2) if data else '{}'}")
+                return data
         except Exception as e:
-            await log.async_error(f"Error reading from Firebase path '{reference_path}': {str(e)}")
-            return None
+            await log.async_error(f"Error reading from Firebase: {str(e)}")
+            return {}
 
     async def write(self, reference_path: str, data: Dict[str, Any]) -> bool:
         """
@@ -243,6 +252,23 @@ class AsyncFirebase:
             return success
         except Exception as e:
             await log.async_error(f"Error deleting exchange: {str(e)}")
+            return False
+
+    async def initialize(self):
+        """Initialize Firebase app"""
+        await self._initialize_firebase()
+        await log.async_info("Firebase initialized successfully")
+
+    async def test_connection(self):
+        """Test the Firebase connection"""
+        try:
+            await self._initialize_firebase()
+            async with self.get_reference("/") as ref:
+                data = await asyncio.to_thread(ref.get)
+                await log.async_info(f"Firebase connection test successful. Root data: {data}")
+                return True
+        except Exception as e:
+            await log.async_error(f"Firebase connection test failed: {str(e)}")
             return False
 
 

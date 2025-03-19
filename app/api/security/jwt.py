@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+import json
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -51,26 +52,30 @@ async def authenticate_user(email: str, password: str) -> Optional[User]:
     await log.async_info(f"Attempting to authenticate user: {email}")
     
     try:
+        # Get users from Firebase
         users_data = await firebase.read("users")
-        await log.async_info(f"Users data: {users_data}")
+        await log.async_info(f"Users data: {json.dumps(users_data, indent=2)}")
         
         user_data = None
         user_id = None
         
         if users_data:
             for uid, data in users_data.items():
-                await log.async_info(f"Checking user {uid}: {data}")
+                await log.async_info(f"Checking user {uid}: {json.dumps(data, indent=2)}")
                 if data.get("email") == email:
                     user_data = data
                     user_id = uid
-                    await log.async_info(f"User data found: {user_data}")
+                    await log.async_info(f"User data found: {json.dumps(user_data, indent=2)}")
                     break
         
         if not user_data or "hashed_password" not in user_data:
             await log.async_warning(f"User data not found or incomplete: {email}")
             return None
         
+        # Verify password using bcrypt
         stored_hash = user_data["hashed_password"]
+        await log.async_info(f"Stored hash: {stored_hash}")
+        await log.async_info(f"Provided password: {password}")
         
         is_valid = verify_password(password, stored_hash)
         await log.async_info(f"Password valid: {is_valid}")
@@ -79,11 +84,13 @@ async def authenticate_user(email: str, password: str) -> Optional[User]:
             await log.async_warning(f"Invalid password for user: {email}")
             return None
         
+        # Password verified, return the user
         return User(
             id=user_id,
             email=email,
             username=user_data.get("username", ""),
-            is_active=not user_data.get("disabled", False)
+            disabled=user_data.get("disabled", False),
+            is_admin=user_data.get("is_admin", False)
         )
             
     except Exception as e:
@@ -101,6 +108,11 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({"exp": expire})
+    
+    # Include is_admin in the token if available
+    if "is_admin" in data:
+        to_encode["is_admin"] = data["is_admin"]
+    
     encoded_jwt = jwt.encode(to_encode, CONFIG.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -117,6 +129,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         payload = jwt.decode(token, CONFIG.SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         user_id: str = payload.get("user_id")
+        is_admin: bool = payload.get("is_admin", False)
         
         if email is None or user_id is None:
             raise credentials_exception
@@ -126,7 +139,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
                 id="admin",
                 email=CONFIG.ADMIN_EMAIL,
                 username=CONFIG.ADMIN_USERNAME,
-                is_active=not CONFIG.ADMIN_DISABLED
+                is_active=not CONFIG.ADMIN_DISABLED,
+                is_admin=True
             )
         
         users_data = await firebase.read("users")
@@ -145,7 +159,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
             id=user_id,
             email=email,
             username=user_data.get("username", ""),
-            is_active=True
+            is_active=True,
+            is_admin=is_admin
         )
         
     except JWTError:
