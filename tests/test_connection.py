@@ -33,16 +33,16 @@ class FirebaseAPIClient:
         try:
             response = requests.get(f"{self.base_url}/api/v1/health", timeout=5)
             if response.status_code == 200:
-                print("✅ API server is online!")
+                print("API server is online!")
                 return True
             else:
-                print(f"❌ API server returned status {response.status_code}")
+                print(f"API server returned status {response.status_code}")
                 return False
         except requests.exceptions.ConnectionError:
-            print("❌ Could not connect to the API server. Make sure the server is running.")
+            print("Could not connect to the API server. Make sure the server is running.")
             return False
         except Exception as e:
-            print(f"❌ Error checking server status: {str(e)}")
+            print(f"Error checking server status: {str(e)}")
             return False
     
     def login(self):
@@ -56,7 +56,7 @@ class FirebaseAPIClient:
             "password": self.password
         }
         
-        print(f"🔑 Attempting login with {self.email}...")
+        print(f"Attempting login with {self.email}...")
         
         try:
             response = requests.post(
@@ -72,27 +72,27 @@ class FirebaseAPIClient:
                 self.headers["Authorization"] = f"Bearer {self.token}"
                 # Token expires in 10 minutes (600 seconds)
                 self.token_expiry = time.time() + 600
-                print(f"✅ Login successful!")
+                print("Login successful!")
                 return True
             else:
-                print(f"❌ Login error: {response.text}")
+                print(f"Login error: {response.text}")
                 return False
         except requests.exceptions.ConnectionError:
-            print("❌ Could not connect to the API server.")
+            print("Could not connect to the API server.")
             return False
         except Exception as e:
-            print(f"❌ Error during login: {str(e)}")
+            print(f"Error during login: {str(e)}")
             return False
     
     def is_token_valid(self):
         """Check if the token is still valid"""
         if not self.token:
-            print("❌ No token available. Please login first.")
+            print("No token available. Please login first.")
             return False
         
         # Check if token has expired
         if time.time() > self.token_expiry:
-            print("⚠️ Token expired. Renewing...")
+            print("Token expired. Renewing...")
             return self.login()
         
         url = f"{self.base_url}/api/v1/auth/user/me"
@@ -101,16 +101,16 @@ class FirebaseAPIClient:
             response = requests.get(url, headers=self.headers, timeout=10)
             
             if response.ok:
-                print("✅ Token is valid!")
+                print("Token is valid!")
                 return True
             else:
-                print(f"❌ Invalid token: {response.text}")
+                print(f"Invalid token: {response.text}")
                 return self.login()
         except requests.exceptions.ConnectionError:
-            print("❌ Could not connect to the API server. Make sure the server is running.")
+            print("Could not connect to the API server. Make sure the server is running.")
             return False
         except Exception as e:
-            print(f"❌ Error validating token: {str(e)}")
+            print(f"Error validating token: {str(e)}")
             return False
     
     def list_users(self):
@@ -129,16 +129,16 @@ class FirebaseAPIClient:
             
             if response.status_code == 200:
                 users = response.json()
-                print(f"✅ {len(users)} users found!")
+                print(f"{len(users)} users found!")
                 return users
             else:
-                print(f"❌ Error listing users: {response.text}")
+                print(f"Error listing users: {response.text}")
                 return None
         except requests.exceptions.ConnectionError:
-            print("❌ Could not connect to the API server.")
+            print("Could not connect to the API server.")
             return None
         except Exception as e:
-            print(f"❌ Error listing users: {str(e)}")
+            print(f"Error listing users: {str(e)}")
             return None
     
     def get_user_details(self, user_id):
@@ -153,16 +153,16 @@ class FirebaseAPIClient:
             
             if response.status_code == 200:
                 user = response.json()
-                print(f"✅ User details for {user_id} retrieved successfully!")
+                print(f"User details for {user_id} retrieved successfully!")
                 return user
             else:
-                print(f"❌ Error getting user details: {response.text}")
+                print(f"Error getting user details: {response.text}")
                 return None
         except requests.exceptions.ConnectionError:
-            print("❌ Could not connect to the API server. Make sure the server is running.")
+            print("Could not connect to the API server. Make sure the server is running.")
             return None
         except Exception as e:
-            print(f"❌ Error getting user details: {str(e)}")
+            print(f"Error getting user details: {str(e)}")
             return None
     
     def is_admin(self):
@@ -197,17 +197,17 @@ class FirebaseAPIClient:
             if response.status_code == 200:
                 admin_data = response.json()
                 if admin_data.get("exists", False):
-                    print("✅ Admin user exists in Firebase")
+                    print("Admin user exists in Firebase")
                     print(f"Admin data: {json.dumps(admin_data, indent=2)}")
                     return True
                 else:
-                    print("❌ Admin user does not exist in Firebase")
+                    print("Admin user does not exist in Firebase")
                     return False
             else:
-                print(f"❌ Error checking admin user: {response.text}")
+                print(f"Error checking admin user: {response.text}")
                 return False
         except Exception as e:
-            print(f"❌ Error checking admin user: {str(e)}")
+            print(f"Error checking admin user: {str(e)}")
             return False
 
     def check_firebase_connection(self):
@@ -218,13 +218,13 @@ class FirebaseAPIClient:
             response = requests.get(url, timeout=10)
             
             if response.status_code == 200:
-                print("✅ API test endpoint is working!")
+                print("API test endpoint is working!")
                 return True
             else:
-                print(f"❌ API test endpoint returned status {response.status_code}")
+                print(f"API test endpoint returned status {response.status_code}")
                 return False
         except Exception as e:
-            print(f"❌ Error checking API test endpoint: {str(e)}")
+            print(f"Error checking API test endpoint: {str(e)}")
             return False
 
     def update_admin_status(self):
@@ -239,13 +239,13 @@ class FirebaseAPIClient:
             
             if response.status_code == 200:
                 result = response.json()
-                print(f"✅ Admin status updated: {result}")
+                print(f"Admin status updated: {result}")
                 return True
             else:
-                print(f"❌ Error updating admin status: {response.text}")
+                print(f"Error updating admin status: {response.text}")
                 return False
         except Exception as e:
-            print(f"❌ Error updating admin status: {str(e)}")
+            print(f"Error updating admin status: {str(e)}")
             return False
 
 
@@ -254,7 +254,7 @@ def main():
     client = FirebaseAPIClient()
     
     if not client.check_server_status():
-        print("\n⚠️ Instructions to start the API server:")
+        print("\nInstructions to start the API server:")
         print("1. Open a terminal")
         print("2. Navigate to the project directory")
         print("3. Run: uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload")
@@ -289,12 +289,12 @@ def main():
     
     # Continue with normal login
     if not client.login():
-        print("❌ Could not login. Exiting.")
+        print("Could not login. Exiting.")
         return
     
     # Check if user is admin
     if client.is_admin():
-        print("✅ Current user has admin privileges")
+        print("Current user has admin privileges")
         
         # Update admin status
         client.update_admin_status()
@@ -302,7 +302,7 @@ def main():
         # List all users (admin only)
         users = client.list_users()
         if users:
-            print("\n📋 User list:")
+            print("\nUser list:")
             for user_id, user_data in users.items():
                 print(f"  • ID: {user_id}")
                 print(f"    Email: {user_data.get('email', 'N/A')}")
@@ -311,7 +311,7 @@ def main():
                 print(f"    Status: {'Active' if not user_data.get('disabled', False) else 'Inactive'}")
                 print("")
     else:
-        print("⚠️ Current user does not have admin privileges")
+        print("Current user does not have admin privileges")
         print("Some operations will not be available")
 
 
